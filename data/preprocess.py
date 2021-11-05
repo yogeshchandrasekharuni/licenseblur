@@ -7,6 +7,7 @@ from pdb import set_trace
 import shutil
 from natsort import natsorted
 from typing import List
+from datetime import datetime
 
 
 def convert_aolp_to_yolo_format(data_path: str, save_path: str) -> None:
@@ -139,8 +140,31 @@ def combine_subsets(path_to_sets: List[str], save_dir: str) -> None:
 
             image_id += 1
 
+def construct_yaml(
+        skeleton_yaml_path: str,
+        train_path: str,
+        validation_path: str,
+        save_path: str,
+        n_classes: int = 1,
+        class_names: List[str] = ['license_plate'],
+        ) -> None:
+    """Constructs a yaml file for training using a skeleton"""
 
-def main(path_to_sets: str, save_path: str) -> None:
+    with open(skeleton_yaml_path, 'r') as f:
+        skeleton_yaml = f.read()
+    
+    skeleton_yaml = skeleton_yaml.replace('$TRAIN_PATH$', train_path)
+    skeleton_yaml = skeleton_yaml.replace('$VALIDATION_PATH$', validation_path)
+    skeleton_yaml = skeleton_yaml.replace('$N_CLASSES$', str(n_classes))
+    skeleton_yaml = skeleton_yaml.replace('$CLASS_NAMES_LIST$', str(class_names))
+
+    meta_data = f"# This yaml file was constructed on {datetime.now()}\n# Path to skeleton -> {skeleton_yaml_path}\n\n\n"
+    skeleton_yaml = meta_data + skeleton_yaml
+
+    with open(save_path, 'w') as f:
+        f.write(skeleton_yaml)
+
+def main(path_to_sets: str, save_path: str, skeleton_yaml_path: str) -> None:
     """
     Convert annotations which are in the format of 
     [x1, y1, x2, y2] of top left and bottom right corners of bbox to
@@ -160,6 +184,16 @@ def main(path_to_sets: str, save_path: str) -> None:
     print('Splitting into train and test sets...', end='', flush=True)
     train_test_split(data_path=os.path.join(save_path, "combined"))
     print('Done!')
+    
+    print('Constructing yaml...', end='', flush=True)
+    construct_yaml(
+        skeleton_yaml_path=skeleton_yaml_path,
+        train_path=os.path.join(save_path, "combined/train"),
+        validation_path=os.path.join(save_path, "combined/test"),
+        save_path=os.path.join(save_path, "combined/training_meta_data.yaml")
+    )
+    print('Done!')
+
     return
 
 
@@ -172,5 +206,6 @@ if __name__ == '__main__':
 
     main(
         path_to_sets=path_to_sets,
-        save_path="/home/yogesh/Documents/licenseblur/data/AOLP"
+        save_path="/home/yogesh/Documents/licenseblur/data/AOLP",
+        skeleton_yaml_path="/home/yogesh/Documents/licenseblur/data/training_meta_data_skeleton.yaml"
     )
