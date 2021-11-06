@@ -130,4 +130,8 @@ dmypy.json
 
 
 # data
-data/AOLP/*
+data/AOLP/
+data/car_license_plate_detection/
+data/CCPD2019/
+data/indian_number_plates/
+data/CCPD2019.tar.xz
