@@ -1,0 +1,11 @@
+# Skeleton of the yaml file that is required for training
+
+
+train: $TRAIN_PATH$ 
+val: $VALIDATION_PATH$ 
+
+# number of classes
+nc: $N_CLASSES$
+
+# class names
+names: $CLASS_NAMES_LIST$

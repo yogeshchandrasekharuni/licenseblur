@@ -7,8 +7,9 @@ from pdb import set_trace
 import shutil
 from natsort import natsorted
 from typing import List
-from datetime import datetime
 
+
+from utils.util import construct_yaml, train_test_split, xyxy2xywh
 
 def convert_aolp_to_yolo_format(data_path: str, save_path: str) -> None:
     """Convert annotations which are in the format of 
@@ -50,18 +51,7 @@ def convert_aolp_to_yolo_format(data_path: str, save_path: str) -> None:
                 # raised when the coordinate is in scientifc format like "1.75e+002"
                 x_topleft, y_topleft, x_bottomright, y_bottomright = [int(float(ant.replace('\n', ''))) for ant in annts]
 
-            x_centroid = (x_topleft + x_bottomright) / 2
-            y_centroid = (y_topleft + y_bottomright) / 2
-
-            w = x_bottomright - x_topleft
-            h = y_bottomright - y_topleft
-
-            # normalize by image reso
-            x_centroid = x_centroid / img_width
-            y_centroid = y_centroid / img_height
-
-            w = w / img_width
-            h = h / img_height
+            x_centroid, y_centroid, w, h = xyxy2xywh(x_topleft, y_topleft, x_bottomright, y_bottomright, img_width, img_height)
 
             new_annts = str(class_) + ' ' + str(x_centroid) + ' ' + str(y_centroid) + ' ' + str(w) + ' ' + str(h) + '\n'
             
@@ -76,31 +66,6 @@ def convert_aolp_to_yolo_format(data_path: str, save_path: str) -> None:
             _save(second_plate=True)
 
 
-
-
-def train_test_split(data_path):
-    image_names = os.listdir(os.path.join(data_path, 'Image'))
-    train_image_names, test_image_names = model_selection.train_test_split(image_names, test_size=0.2, random_state=42)
-    train_image_names = [image_name for image_name in train_image_names if image_name.endswith('.jpg')]
-    test_image_names = [image_name for image_name in test_image_names if image_name.endswith('.jpg')]
-
-    image_source = os.path.join(data_path, 'Image')
-    annts_source = os.path.join(data_path, 'yolo_format')
-    train_destination = os.path.join(data_path, 'train')
-    test_destination = os.path.join(data_path, 'test')
-
-    if not os.path.isdir(train_destination):
-        os.mkdir(train_destination)
-    if not os.path.isdir(test_destination):
-        os.mkdir(test_destination)
-
-    for image_name in tqdm(train_image_names):
-        shutil.copy(os.path.join(image_source, image_name), os.path.join(train_destination, image_name))
-        shutil.copy(os.path.join(annts_source, image_name[:-4] + '.txt'), os.path.join(data_path, 'train', image_name[:-4] + '.txt'))
-
-    for image_name in tqdm(test_image_names):
-        shutil.copy(os.path.join(image_source, image_name), os.path.join(test_destination, image_name))
-        shutil.copy(os.path.join(annts_source, image_name[:-4] + '.txt'), os.path.join(data_path, 'test', image_name[:-4] + '.txt'))
 
 
 def combine_subsets(path_to_sets: List[str], save_dir: str) -> None:
@@ -140,29 +105,6 @@ def combine_subsets(path_to_sets: List[str], save_dir: str) -> None:
 
             image_id += 1
 
-def construct_yaml(
-        skeleton_yaml_path: str,
-        train_path: str,
-        validation_path: str,
-        save_path: str,
-        n_classes: int = 1,
-        class_names: List[str] = ['license_plate'],
-        ) -> None:
-    """Constructs a yaml file for training using a skeleton"""
-
-    with open(skeleton_yaml_path, 'r') as f:
-        skeleton_yaml = f.read()
-    
-    skeleton_yaml = skeleton_yaml.replace('$TRAIN_PATH$', train_path)
-    skeleton_yaml = skeleton_yaml.replace('$VALIDATION_PATH$', validation_path)
-    skeleton_yaml = skeleton_yaml.replace('$N_CLASSES$', str(n_classes))
-    skeleton_yaml = skeleton_yaml.replace('$CLASS_NAMES_LIST$', str(class_names))
-
-    meta_data = f"# This yaml file was constructed on {datetime.now()}\n# Path to skeleton -> {skeleton_yaml_path}\n\n\n"
-    skeleton_yaml = meta_data + skeleton_yaml
-
-    with open(save_path, 'w') as f:
-        f.write(skeleton_yaml)
 
 def main(path_to_sets: str, save_path: str, skeleton_yaml_path: str) -> None:
     """
